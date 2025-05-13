@@ -60,7 +60,6 @@ int main() {
         // if (readCommandLine(input, MAX_COMMAND_LENGTH) == 0) {
             break;
         }
-        input[strcspn(input, "\n")] = '\0';
         if (strlen(input) == 0) {
             continue;
         }

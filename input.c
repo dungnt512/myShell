@@ -2,7 +2,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#include <conio.h>
 #include "utils.h"
+
+#define KEY_UP      72
+#define KEY_DOWN    80
+#define KEY_LEFT    75
+#define KEY_RIGHT   77
+#define KEY_BACKSPACE 8
+#define KEY_DELETE  83
+#define KEY_ENTER   13
+#define KEY_ESC     27
 
 char commandHistory[HISTORY_SIZE][MAX_COMMAND_LENGTH];
 int historyCount = 0;
@@ -57,191 +67,137 @@ void addToHistory(const char *command) {
     strcpy(commandHistory[0], command);
 }
 
-int readCommandLine(char *buffer, int bufferSize) {
-    HANDLE hStdin = GetStdHandle(STD_INPUT_HANDLE);
+void clearLine(int startX) {
     HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
-    DWORD originalMode;
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hStdout, &csbi);
     
-    // Lưu chế độ console ban đầu
-    GetConsoleMode(hStdin, &originalMode);
+    COORD pos = {startX, csbi.dwCursorPosition.Y};
+    SetConsoleCursorPosition(hStdout, pos);
     
-    // Thiết lập chế độ phù hợp để đọc phím
-    // Tắt ENABLE_LINE_INPUT để đọc từng ký tự một
-    // Tắt ENABLE_ECHO_INPUT để tự quản lý hiển thị
-    SetConsoleMode(hStdin, ENABLE_WINDOW_INPUT | ENABLE_VIRTUAL_TERMINAL_INPUT | ENABLE_PROCESSED_INPUT);
+    DWORD written;
+    FillConsoleOutputCharacter(hStdout, ' ', csbi.dwSize.X - startX, pos, &written);
+    SetConsoleCursorPosition(hStdout, pos);
+}
 
+int readCommandLine(char *buffer, int bufferSize) {
+    HANDLE hStdout = GetStdHandle(STD_OUTPUT_HANDLE);
+    CONSOLE_SCREEN_BUFFER_INFO csbi;
+    GetConsoleScreenBufferInfo(hStdout, &csbi);
+    int startX = csbi.dwCursorPosition.X;
+    
     int cursorPos = 0;
     int bufferLen = 0;
     buffer[0] = '\0';
     currentHistoryIndex = -1;
-
-    CONSOLE_SCREEN_BUFFER_INFO csbi;
-    GetConsoleScreenBufferInfo(hStdout, &csbi);
-    COORD startPos = csbi.dwCursorPosition;
-
+    
     while (1) {
-        INPUT_RECORD ir;
-        DWORD numRead;
+        // Đọc phím
+        int ch = _getch();
         
-        // Đọc sự kiện từ bàn phím
-        ReadConsoleInput(hStdin, &ir, 1, &numRead);
-        
-        if (numRead == 0 || ir.EventType != KEY_EVENT || !ir.Event.KeyEvent.bKeyDown) {
-            continue;
-        }
-
-        KEY_EVENT_RECORD ker = ir.Event.KeyEvent;
-        CHAR ch = ker.uChar.AsciiChar;
-        WORD vk = ker.wVirtualKeyCode;
-
-        // Xử lý phím Enter
-        if (vk == VK_RETURN) {
-            WriteConsole(hStdout, "\r\n", 2, NULL, NULL);
-            buffer[bufferLen] = '\0';
-            if (bufferLen > 0) {
-                addToHistory(buffer);
-            }
-            break;
-        }
-        
-        // Xử lý phím mũi tên
-        else if (vk == VK_UP || vk == VK_DOWN) {
-            // Lưu trạng thái hiện tại nếu chưa đi vào lịch sử
-            if (currentHistoryIndex == -1 && bufferLen > 0) {
-                // Lưu trữ command hiện tại tạm thời
-                static char tempBuffer[MAX_COMMAND_LENGTH];
-                strcpy(tempBuffer, buffer);
-            }
+        if (ch == 0 || ch == 224) { 
+            ch = _getch();
             
-            // Xóa dòng hiện tại
-            SetConsoleCursorPosition(hStdout, startPos);
-            for (int i = 0; i < bufferLen + 5; i++) { // Thêm khoảng trống để chắc chắn xóa hết
-                WriteConsole(hStdout, " ", 1, NULL, NULL);
+            switch (ch) {
+                case KEY_UP:
+                    getCommandFromHistory(buffer, &cursorPos, -1);
+                    bufferLen = strlen(buffer);
+                    clearLine(startX);
+                    printf("%s", buffer);
+                    break;
+                    
+                case KEY_DOWN: 
+                    getCommandFromHistory(buffer, &cursorPos, 1);
+                    bufferLen = strlen(buffer);
+                    clearLine(startX);
+                    printf("%s", buffer);
+                    break;
+                    
+                case KEY_LEFT:
+                    if (cursorPos > 0) {
+                        cursorPos--;
+                        printf("\b");
+                    }
+                    break;
+                    
+                case KEY_RIGHT:
+                    if (cursorPos < bufferLen) {
+                        printf("%c", buffer[cursorPos]);
+                        cursorPos++;
+                    }
+                    break;
+                    
+                case KEY_DELETE:
+                    if (cursorPos < bufferLen) {
+                        for (int i = cursorPos; i < bufferLen - 1; i++) {
+                            buffer[i] = buffer[i + 1];
+                        }
+                        bufferLen--;
+                        buffer[bufferLen] = '\0';
+                        
+                        clearLine(startX);
+                        printf("%s", buffer);
+                        
+                        COORD pos = {startX + cursorPos, csbi.dwCursorPosition.Y};
+                        SetConsoleCursorPosition(hStdout, pos);
+                    }
+                    break;
             }
-            SetConsoleCursorPosition(hStdout, startPos);
-            
-            // Lấy command từ lịch sử
-            if (vk == VK_UP) {
-                // Đi lên trong lịch sử (cũ hơn)
-                if (currentHistoryIndex < historyCount - 1) {
-                    currentHistoryIndex++;
-                    strcpy(buffer, commandHistory[currentHistoryIndex]);
-                }
-            } else { // VK_DOWN
-                // Đi xuống trong lịch sử (mới hơn)
-                if (currentHistoryIndex > 0) {
-                    currentHistoryIndex--;
-                    strcpy(buffer, commandHistory[currentHistoryIndex]);
-                } else if (currentHistoryIndex == 0) {
-                    // Quay lại dòng trống hoặc command đang soạn
-                    currentHistoryIndex = -1;
+        } else {
+            switch (ch) {
+                case KEY_ENTER:
+                    printf("\r\n");
+                    buffer[bufferLen] = '\0';
+                    if (bufferLen > 0) {
+                        addToHistory(buffer);
+                    }
+                    return bufferLen;
+                    
+                case KEY_BACKSPACE:
+                    if (cursorPos > 0) {
+                        for (int i = cursorPos - 1; i < bufferLen - 1; i++) {
+                            buffer[i] = buffer[i + 1];
+                        }
+                        bufferLen--;
+                        cursorPos--;
+                        buffer[bufferLen] = '\0';
+                        
+                        printf("\b");
+                        clearLine(startX + cursorPos);
+                        printf("%s", buffer + cursorPos);
+                        
+                        COORD pos = {startX + cursorPos, csbi.dwCursorPosition.Y};
+                        SetConsoleCursorPosition(hStdout, pos);
+                    }
+                    break;
+                    
+                case KEY_ESC:
+                    clearLine(startX);
                     buffer[0] = '\0';
-                }
-            }
-            
-            bufferLen = strlen(buffer);
-            cursorPos = bufferLen;
-            
-            // Hiển thị command mới
-            WriteConsole(hStdout, buffer, bufferLen, NULL, NULL);
-        }
-        
-        // Xử lý phím mũi tên trái
-        else if (vk == VK_LEFT && cursorPos > 0) {
-            cursorPos--;
-            CONSOLE_SCREEN_BUFFER_INFO csbi;
-            GetConsoleScreenBufferInfo(hStdout, &csbi);
-            csbi.dwCursorPosition.X--;
-            SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition);
-        }
-        
-        // Xử lý phím mũi tên phải
-        else if (vk == VK_RIGHT && cursorPos < bufferLen) {
-            cursorPos++;
-            CONSOLE_SCREEN_BUFFER_INFO csbi;
-            GetConsoleScreenBufferInfo(hStdout, &csbi);
-            csbi.dwCursorPosition.X++;
-            SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition);
-        }
-        
-        // Xử lý phím Backspace
-        else if (vk == VK_BACK && cursorPos > 0) {
-            // Di chuyển tất cả ký tự về phía trái
-            for (int i = cursorPos - 1; i < bufferLen - 1; i++) {
-                buffer[i] = buffer[i + 1];
-            }
-            bufferLen--;
-            cursorPos--;
-            buffer[bufferLen] = '\0';
-            
-            // Cập nhật hiển thị
-            CONSOLE_SCREEN_BUFFER_INFO csbi;
-            GetConsoleScreenBufferInfo(hStdout, &csbi);
-            SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition);
-            csbi.dwCursorPosition.X--;
-            SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition);
-            
-            // In lại phần còn lại của dòng và thêm khoảng trắng ở cuối
-            WriteConsole(hStdout, buffer + cursorPos, bufferLen - cursorPos, NULL, NULL);
-            WriteConsole(hStdout, " ", 1, NULL, NULL);
-            
-            // Đặt con trỏ về vị trí đúng
-            GetConsoleScreenBufferInfo(hStdout, &csbi);
-            csbi.dwCursorPosition.X = startPos.X + cursorPos;
-            SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition);
-        }
-        
-        // Xử lý phím Delete
-        else if (vk == VK_DELETE && cursorPos < bufferLen) {
-            // Di chuyển tất cả ký tự về phía trái từ vị trí con trỏ
-            for (int i = cursorPos; i < bufferLen - 1; i++) {
-                buffer[i] = buffer[i + 1];
-            }
-            bufferLen--;
-            buffer[bufferLen] = '\0';
-            
-            // Cập nhật hiển thị
-            CONSOLE_SCREEN_BUFFER_INFO csbi;
-            GetConsoleScreenBufferInfo(hStdout, &csbi);
-            
-            // In lại phần còn lại của dòng và thêm khoảng trắng ở cuối
-            WriteConsole(hStdout, buffer + cursorPos, bufferLen - cursorPos, NULL, NULL);
-            WriteConsole(hStdout, " ", 1, NULL, NULL);
-            
-            // Đặt con trỏ về vị trí đúng
-            csbi.dwCursorPosition.X = startPos.X + cursorPos;
-            SetConsoleCursorPosition(hStdout, csbi.dwCursorPosition);
-        }
-        
-        // Xử lý các ký tự thông thường
-        else if (ch >= 32 && ch <= 126 && bufferLen < bufferSize - 1) {
-            // Tạo khoảng trống cho ký tự mới
-            for (int i = bufferLen; i > cursorPos; i--) {
-                buffer[i] = buffer[i - 1];
-            }
-            buffer[cursorPos] = ch;
-            cursorPos++;
-            bufferLen++;
-            buffer[bufferLen] = '\0';
-            
-            // Hiển thị ký tự mới
-            WriteConsole(hStdout, &ch, 1, NULL, NULL);
-            
-            // Nếu không phải nhập ở cuối, cần điều chỉnh hiển thị
-            if (cursorPos < bufferLen) {
-                // In phần còn lại của chuỗi
-                WriteConsole(hStdout, buffer + cursorPos, bufferLen - cursorPos, NULL, NULL);
-                
-                // Đặt lại con trỏ
-                CONSOLE_SCREEN_BUFFER_INFO csbi;
-                GetConsoleScreenBufferInfo(hStdout, &csbi);
-                COORD newPos = {startPos.X + cursorPos, startPos.Y};
-                SetConsoleCursorPosition(hStdout, newPos);
+                    bufferLen = 0;
+                    cursorPos = 0;
+                    break;
+                    
+                default:
+                    if (ch >= 32 && ch <= 126 && bufferLen < bufferSize - 1) {
+                        for (int i = bufferLen; i > cursorPos; i--) {
+                            buffer[i] = buffer[i-1];
+                        }
+                        buffer[cursorPos] = ch;
+                        cursorPos++;
+                        bufferLen++;
+                        buffer[bufferLen] = '\0';
+                        
+                        clearLine(startX);
+                        printf("%s", buffer);
+                        
+                        COORD pos = {startX + cursorPos, csbi.dwCursorPosition.Y};
+                        SetConsoleCursorPosition(hStdout, pos);
+                    }
+                    break;
             }
         }
     }
-
-    // Khôi phục chế độ console ban đầu
-    SetConsoleMode(hStdin, originalMode);
-    return bufferLen;
+    
+    return 0;
 }

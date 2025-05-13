@@ -242,12 +242,12 @@ int stopProcess(DWORD processId) {
         if (processList[i].processInfo.dwProcessId == processId) {
             if (SuspendThread(processList[i].processInfo.hThread) != (DWORD)-1) {
                 processList[i].isPaused = 1;
-                _snprintf(buffer, sizeof(buffer) - 1, "Đã tạm dừng tiến trình PID %lu", processId);
+                snprintf(buffer, sizeof(buffer) - 1, "Đã tạm dừng tiến trình PID %lu", processId);
                 buffer[sizeof(buffer) - 1] = '\0';
                 print_unicode_line(buffer);
                 return 1;
             } else {
-                _snprintf(buffer, sizeof(buffer) - 1, "Không thể tạm dừng tiến trình PID %lu. Mã lỗi: %lu", processId, GetLastError());
+                snprintf(buffer, sizeof(buffer) - 1, "Không thể tạm dừng tiến trình PID %lu. Mã lỗi: %lu", processId, GetLastError());
                 buffer[sizeof(buffer) - 1] = '\0';
                 print_unicode_line(buffer);
                 return 0;

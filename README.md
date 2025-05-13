@@ -48,7 +48,7 @@ make clean
 Sau khi biên dịch, chạy shell bằng lệnh:
 
 ```
-myShell
+tinyShell hoặc .\tinyShell
 ```
 
 ## Cấu trúc mã nguồn

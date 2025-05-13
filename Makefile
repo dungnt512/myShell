@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra
 LDFLAGS = 
 
 TARGET = tinyShell
-SOURCES = main.c process.c commands.c utils.c input.c
+SOURCES = main.c process.c commands.c utils.c 
 OBJECTS = $(SOURCES:.c=.o)
 
 all: $(TARGET)

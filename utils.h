@@ -20,17 +20,17 @@ int isExecutable(const char* path);
 
 char* findExecutable(const char* command);
 
-// int readCommandLine(char *buffer, int bufferSize);
+int readCommandLine(char *buffer, int bufferSize);
 
-// #ifndef HISTORY_SIZE
-// #define HISTORY_SIZE 100
-// #endif
-// #ifndef MAX_COMMAND_LENGTH
-// #define MAX_COMMAND_LENGTH 1024
-// #endif
+#ifndef HISTORY_SIZE
+#define HISTORY_SIZE 100
+#endif
+#ifndef MAX_COMMAND_LENGTH
+#define MAX_COMMAND_LENGTH 1024
+#endif
 
-// extern char commandHistory[HISTORY_SIZE][MAX_COMMAND_LENGTH];
-// extern int historyCount;
-// extern int currentHistoryIndex;
+extern char commandHistory[HISTORY_SIZE][MAX_COMMAND_LENGTH];
+extern int historyCount;
+extern int currentHistoryIndex;
 
 #endif 

@@ -6,8 +6,8 @@
 #include "utils.h"
 #include "commands.h"
 
-static ProcessEntry processList[MAX_PROCESSES];
-static int processCount = 0;
+ProcessEntry processList[MAX_PROCESSES];
+int processCount = 0;
 
 void initializeProcessList() {
     processCount = 0;
@@ -79,6 +79,7 @@ void updateProcessStatusById(DWORD processId) {
 }
 
 void listProcesses() {
+    checkBackgroundProcesses();
     char buffer[512];
     // updateProcessStatus();
 
@@ -190,7 +191,12 @@ void executeCommand(char** args, int background) {
     si.cb = sizeof(si);
     ZeroMemory(&pi, sizeof(pi));
 
-    if (!CreateProcess(NULL, command, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+    DWORD creationFlags = 0;
+    if (background) {
+        creationFlags = CREATE_NEW_CONSOLE;
+    }
+
+    if (!CreateProcess(NULL, command, NULL, NULL, FALSE, creationFlags, NULL, NULL, &si, &pi)) {
         snprintf(buffer, sizeof(buffer) - 1, "Lỗi: Không thể tạo tiến trình cho lệnh '%s'. Mã lỗi: %lu", command, GetLastError());
         buffer[sizeof(buffer) - 1] = '\0';
         print_unicode_line(buffer);
@@ -281,5 +287,39 @@ int resumeProcess(DWORD processId) {
     snprintf(buffer, sizeof(buffer) - 1, "Không tìm thấy tiến trình PID %lu", processId);
     buffer[sizeof(buffer) - 1] = '\0';
     print_unicode_line(buffer);
+    return 0;
+}
+
+void checkBackgroundProcesses() {
+    DWORD exitCode;
+    char buffer[512];
+    int hasCompletedProcess = 0;
+    
+    for (int i = 0; i < processCount; i++) {
+        if (processList[i].isBackground && processList[i].isRunning) {
+            if (GetExitCodeProcess(processList[i].processInfo.hProcess, &exitCode)) {
+                if (exitCode != STILL_ACTIVE) {
+                    processList[i].isRunning = 0;
+                    hasCompletedProcess = 1;
+                    // snprintf(buffer, sizeof(buffer) - 1, "\n[%d] Tiến trình '%s' (PID: %lu) đã kết thúc với mã: %lu", 
+                    //     i + 1, processList[i].commandName, processList[i].processInfo.dwProcessId, exitCode);
+                    // buffer[sizeof(buffer) - 1] = '\0';
+                    // print_unicode_line(buffer);
+                }
+            }
+        }
+    }
+    
+    if (hasCompletedProcess) {
+        print_unicode("\n");
+    }
+}
+
+int isProcessExist(DWORD processId) {
+    for (int i = 0; i < processCount; i++) {
+        if (processList[i].processInfo.dwProcessId == processId) {
+            return 1;
+        }
+    }
     return 0;
 } 

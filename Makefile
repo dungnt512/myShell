@@ -3,7 +3,7 @@ CFLAGS = -Wall -Wextra
 LDFLAGS = 
 
 TARGET = myShell
-SOURCES = main.c process.c commands.c utils.c 
+SOURCES = main.c process.c commands.c utils.c input.c
 OBJECTS = $(SOURCES:.c=.o)
 
 all: $(TARGET)

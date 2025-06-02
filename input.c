@@ -92,8 +92,12 @@ int readCommandLine(char *buffer, int bufferSize) {
     currentHistoryIndex = -1;
     
     while (1) {
-        // Đọc phím
         int ch = _getch();
+        
+        if (ch == 3) {
+            printf("^C\n");
+            exit(0);
+        }
         
         if (ch == 0 || ch == 224) { 
             ch = _getch();

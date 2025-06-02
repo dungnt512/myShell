@@ -95,12 +95,22 @@ int executeBuiltinCommand(char** args) {
         }
         return 1;
     }
+    
+    if (strcmp(args[0], "notepad") == 0) {
+        openNotepad(args);
+        return 1;
+    }
+    
+    if (strcmp(args[0], "calc") == 0) {
+        openCalculator();
+        return 1;
+    }
 
     return 0;
 }
 
 void showHelp() {
-    print_unicode_line("\n=== Trợ giúp tinyShell ===");
+    print_unicode_line("\n=== Trợ giúp myShell ===");
     print_unicode_line("Các lệnh tích hợp:");
     print_unicode_line("  help                - Hiển thị trợ giúp này");
     print_unicode_line("  exit                - Thoát shell");
@@ -109,6 +119,8 @@ void showHelp() {
     print_unicode_line("  dir [đường_dẫn]     - Liệt kê nội dung thư mục");
     print_unicode_line("  path                - Hiển thị đường dẫn của shell");
     print_unicode_line("  addpath <đường_dẫn> - Thêm đường dẫn vào quản lý của shell");
+    print_unicode_line("  notepad [tệp_tin]   - Mở Notepad với tệp tin tùy chọn");
+    print_unicode_line("  calc                - Mở Calculator");
     print_unicode_line("\nQuản lý tiến trình:");
     print_unicode_line("  list                - Liệt kê tất cả tiến trình do shell quản lý");
     print_unicode_line("  kill <PID>          - Kết thúc tiến trình");
@@ -260,4 +272,63 @@ void addPath(char* newPath) {
     
     // update PATH of system (optional :))
     // SetEnvironmentVariable("PATH", newFullPath);
+}
+
+void openNotepad(char** args) {
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    char command[MAX_PATH * 2] = "notepad.exe";
+    
+    if (args[1] != NULL) {
+        strcat(command, " ");
+        if (strchr(args[1], ' ') != NULL) {
+            strcat(command, "\"");
+            strcat(command, args[1]);
+            strcat(command, "\"");
+        } else {
+            strcat(command, args[1]);
+        }
+    }
+    
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+    
+    if (!CreateProcess(NULL, command, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        char buffer[512];
+        snprintf(buffer, sizeof(buffer) - 1, "Lỗi: Không thể mở Notepad. Mã lỗi: %lu", GetLastError());
+        buffer[sizeof(buffer) - 1] = '\0';
+        print_unicode_line(buffer);
+        return;
+    }
+    
+    addProcess(pi, "notepad", 1);
+    
+    char buffer[512];
+    sprintf(buffer, "[1] %lu", pi.dwProcessId);
+    print_unicode_line(buffer);
+}
+
+void openCalculator() {
+    STARTUPINFO si;
+    PROCESS_INFORMATION pi;
+    char command[] = "calc.exe";
+    
+    ZeroMemory(&si, sizeof(si));
+    si.cb = sizeof(si);
+    ZeroMemory(&pi, sizeof(pi));
+    
+    if (!CreateProcess(NULL, command, NULL, NULL, FALSE, 0, NULL, NULL, &si, &pi)) {
+        char buffer[512];
+        snprintf(buffer, sizeof(buffer) - 1, "Lỗi: Không thể mở Calculator. Mã lỗi: %lu", GetLastError());
+        buffer[sizeof(buffer) - 1] = '\0';
+        print_unicode_line(buffer);
+        return;
+    }
+    
+    addProcess(pi, "calc", 1);
+    
+    char buffer[512];
+    sprintf(buffer, "[1] %lu", pi.dwProcessId);
+    print_unicode_line(buffer);
 } 

@@ -14,6 +14,8 @@
 
 PROCESS_INFORMATION currentForegroundProcess = {0};
 int isForegroundProcessRunning = 0;
+int isMonitorMode = 0;
+DWORD monitoredPid = 0;
 
 BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) {
     switch (fdwCtrlType) {
@@ -33,7 +35,7 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) {
     }
 }
 
-int main() {
+int main(int argc, char* argv[]) {
     char input[MAX_COMMAND_LENGTH];
     char *args[MAX_ARGS];
     int background;
@@ -49,15 +51,49 @@ int main() {
         return 1;
     }
 
-    print_unicode_line("=== myShell - Shell đơn giản cho Windows ===");
-    print_unicode_line("Nhập 'help' để xem các lệnh.");
+    if (argc > 1) {
+        monitoredPid = atoi(argv[1]);
+        if (monitoredPid > 0) {
+            isMonitorMode = 1;
+            char buffer[512];
+            snprintf(buffer, sizeof(buffer) - 1, "=== myShell - Chế độ giám sát tiến trình %lu ===", monitoredPid);
+            buffer[sizeof(buffer) - 1] = '\0';
+            print_unicode_line(buffer);
+        }
+    } else {
+        print_unicode_line("=== myShell - Shell đơn giản cho Windows ===");
+        print_unicode_line("Nhập 'help' để xem các lệnh.");
+    }
 
     while (1) {
+        // checkBackgroundProcesses();
+        
+        if (isMonitorMode) {
+            HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, monitoredPid);
+            if (hProcess != NULL) {
+                DWORD exitCode;
+                if (GetExitCodeProcess(hProcess, &exitCode)) {
+                    if (exitCode != STILL_ACTIVE) {
+                        char buffer[512];
+                        snprintf(buffer, sizeof(buffer) - 1, "\nTiến trình %lu đã kết thúc với mã: %lu", monitoredPid, exitCode);
+                        buffer[sizeof(buffer) - 1] = '\0';
+                        print_unicode_line(buffer);
+                        CloseHandle(hProcess);
+                        break;
+                    }
+                }
+                CloseHandle(hProcess);
+            } else {
+                print_unicode_line("\nKhông thể mở tiến trình để giám sát. Tiến trình có thể đã kết thúc.");
+                break;
+            }
+        }
+        
         print_unicode(PROMPT);
         fflush(stdout);
         
-        if (fgets(input, MAX_COMMAND_LENGTH, stdin) == NULL) {
-        // if (readCommandLine(input, MAX_COMMAND_LENGTH) == 0) {
+        // if (fgets(input, MAX_COMMAND_LENGTH, stdin) == NULL) {
+        if (readCommandLine(input, MAX_COMMAND_LENGTH) == 0) {
             break;
         }
         input[strcspn(input, "\n")] = '\0';
@@ -66,7 +102,6 @@ int main() {
         }
 
         background = parseCommand(input, args);
-
         if (args[0] == NULL) {
             continue;
         }

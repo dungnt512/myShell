@@ -10,7 +10,7 @@
 
 #define MAX_COMMAND_LENGTH 1024
 #define MAX_ARGS 64
-#define PROMPT "tinyShell> "
+#define PROMPT "myShell> "
 
 PROCESS_INFORMATION currentForegroundProcess = {0};
 int isForegroundProcessRunning = 0;
@@ -49,7 +49,7 @@ int main() {
         return 1;
     }
 
-    print_unicode_line("=== tinyShell - Shell đơn giản cho Windows ===");
+    print_unicode_line("=== myShell - Shell đơn giản cho Windows ===");
     print_unicode_line("Nhập 'help' để xem các lệnh.");
 
     while (1) {
@@ -60,11 +60,13 @@ int main() {
         // if (readCommandLine(input, MAX_COMMAND_LENGTH) == 0) {
             break;
         }
+        input[strcspn(input, "\n")] = '\0';
         if (strlen(input) == 0) {
             continue;
         }
 
         background = parseCommand(input, args);
+
         if (args[0] == NULL) {
             continue;
         }

@@ -2,7 +2,7 @@ CC = gcc
 CFLAGS = -Wall -Wextra
 LDFLAGS = 
 
-TARGET = tinyShell
+TARGET = myShell
 SOURCES = main.c process.c commands.c utils.c 
 OBJECTS = $(SOURCES:.c=.o)
 

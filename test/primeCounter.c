@@ -28,8 +28,8 @@ bool checkPrime(long long n) {
 }
 
 void countPrime(struct Interval *interval) {
-  int range = interval->right - interval->left + 1;
-  int gap = range / 100;
+  long long range = interval->right - interval->left + 1;
+  long long  gap = range / 100;
   for (long long i = interval->left; i <= interval->right; i++) {
     if (i % gap == 0) {
       printf("Thread %d is processing number %lld, progress: %d%%\n", GetCurrentThreadId(), i, (i - interval->left) * 100 / range);
@@ -42,7 +42,7 @@ void countPrime(struct Interval *interval) {
 }
 
 int OneThreads() {
-  struct Interval It1 = {2,       2000000,   0};
+  struct Interval It1 = {2,       200000000,   0};
   HANDLE hHandles;
   DWORD Id;
   hHandles = CreateThread(NULL, 512, (LPTHREAD_START_ROUTINE)countPrime, &It1, 0, &Id);
@@ -54,8 +54,8 @@ int OneThreads() {
 }
 
 int TwoThreads() {
-  struct Interval It1 = {2,       1300000,  0},
-                  It2 = {1300001, 2000000,  0};
+  struct Interval It1 = {2,       130000000,  0},
+                  It2 = {130000001, 200000000,  0};
   
   HANDLE hHandles[2];
   DWORD Id;
@@ -70,9 +70,9 @@ int TwoThreads() {
 }
 
 int ThreeThreads() {
-  struct Interval It1 = {2,       1000000,  0},
-                  It2 = {1000001, 1500000,  0},
-                  It3 = {1500001, 2000000,  0};
+  struct Interval It1 = {2,       100000000,  0},
+                  It2 = {100000001, 150000000,  0},
+                  It3 = {150000001, 200000000,  0};
   
   HANDLE hHandles[3];
   DWORD Id;
@@ -89,10 +89,10 @@ int ThreeThreads() {
 }
 
 int FourThreads() {
-  struct Interval It1 = {2,       900000,   0},
-                  It2 = {900001,  1400000,  0},
-                  It3 = {1400001, 1730000,  0},
-                  It4 = {1730001, 20000000000,  0};
+  struct Interval It1 = {2,       90000000,   0},
+                  It2 = {90000001,  140000000,  0},
+                  It3 = {140000001, 173000000,  0},
+                  It4 = {173000001, 200000000,  0};
   
   HANDLE hHandles[4];
   DWORD Id;

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <windows.h>
+#include <tlhelp32.h>
 #include "process.h"
 #include "utils.h"
 #include "commands.h"
@@ -245,15 +246,68 @@ int killProcess(DWORD processId) {
 int stopProcess(DWORD processId) {
     char buffer[512];
     for (int i = 0; i < processCount; i++) {
+        // if (processList[i].processInfo.dwProcessId == processId) {
+        //     if (SuspendThread(processList[i].processInfo.hThread) != (DWORD)-1) {
+        //         processList[i].isPaused = 1;
+        //         snprintf(buffer, sizeof(buffer) - 1, "Đã tạm dừng tiến trình PID %lu", processId);
+        //         buffer[sizeof(buffer) - 1] = '\0';
+        //         print_unicode_line(buffer);
+        //         return 1;
+        //     } else {
+        //         snprintf(buffer, sizeof(buffer) - 1, "Không thể tạm dừng tiến trình PID %lu. Mã lỗi: %lu", processId, GetLastError());
+        //         buffer[sizeof(buffer) - 1] = '\0';
+        //         print_unicode_line(buffer);
+        //         return 0;
+        //     }
+        // }
+
         if (processList[i].processInfo.dwProcessId == processId) {
-            if (SuspendThread(processList[i].processInfo.hThread) != (DWORD)-1) {
+            HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+            if (hThreadSnap == INVALID_HANDLE_VALUE) {
+                snprintf(buffer, sizeof(buffer) - 1, "Không thể tạm dừng tiến trình PID %lu. Không thể tạo snapshot.", processId);
+                buffer[sizeof(buffer) - 1] = '\0';
+                print_unicode_line(buffer);
+                return 0;
+            }
+
+            THREADENTRY32 te32;
+            te32.dwSize = sizeof(THREADENTRY32);
+
+            if (!Thread32First(hThreadSnap, &te32)) {
+                snprintf(buffer, sizeof(buffer) - 1, "Không thể tạm dừng tiến trình PID %lu. Thread32First lỗi.", processId);
+                buffer[sizeof(buffer) - 1] = '\0';
+                print_unicode_line(buffer);
+                CloseHandle(hThreadSnap);
+                return 0;
+            }
+
+            int threadCount = 0;
+            int successCount = 0;
+
+            do {
+                if (te32.th32OwnerProcessID == processId) {
+                    threadCount++;
+                    HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te32.th32ThreadID);
+                    if (hThread != NULL) {
+                        if (SuspendThread(hThread) != (DWORD)-1) {
+                            successCount++;
+                        }
+                        CloseHandle(hThread);
+                    }
+                }
+            } while (Thread32Next(hThreadSnap, &te32));
+
+            CloseHandle(hThreadSnap);
+
+            if (threadCount > 0 && successCount > 0) {
                 processList[i].isPaused = 1;
-                snprintf(buffer, sizeof(buffer) - 1, "Đã tạm dừng tiến trình PID %lu", processId);
+                snprintf(buffer, sizeof(buffer) - 1, "Đã tạm dừng %d/%d thread của tiến trình PID %lu", 
+                    successCount, threadCount, processId);
                 buffer[sizeof(buffer) - 1] = '\0';
                 print_unicode_line(buffer);
                 return 1;
             } else {
-                snprintf(buffer, sizeof(buffer) - 1, "Không thể tạm dừng tiến trình PID %lu. Mã lỗi: %lu", processId, GetLastError());
+                snprintf(buffer, sizeof(buffer) - 1, "Không thể tạm dừng tiến trình PID %lu. Không tìm thấy thread nào.", processId);
                 buffer[sizeof(buffer) - 1] = '\0';
                 print_unicode_line(buffer);
                 return 0;
@@ -269,15 +323,67 @@ int stopProcess(DWORD processId) {
 int resumeProcess(DWORD processId) {
     char buffer[512];
     for (int i = 0; i < processCount; i++) {
+        // if (processList[i].processInfo.dwProcessId == processId) {
+        //     if (ResumeThread(processList[i].processInfo.hThread) != (DWORD)-1) {
+        //         processList[i].isPaused = 0;
+        //         snprintf(buffer, sizeof(buffer) - 1, "Đã tiếp tục tiến trình PID %lu", processId);
+        //         buffer[sizeof(buffer) - 1] = '\0';
+        //         print_unicode_line(buffer);
+        //         return 1;
+        //     } else {
+        //         snprintf(buffer, sizeof(buffer) - 1, "Không thể tiếp tục tiến trình PID %lu. Mã lỗi: %lu", processId, GetLastError());
+        //         buffer[sizeof(buffer) - 1] = '\0';
+        //         print_unicode_line(buffer);
+        //         return 0;
+        //     }
+        // }
+
         if (processList[i].processInfo.dwProcessId == processId) {
-            if (ResumeThread(processList[i].processInfo.hThread) != (DWORD)-1) {
+            HANDLE hThreadSnap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+            if (hThreadSnap == INVALID_HANDLE_VALUE) {
+                snprintf(buffer, sizeof(buffer) - 1, "Không thể tiếp tục tiến trình PID %lu. Không thể tạo snapshot.", processId);
+                buffer[sizeof(buffer) - 1] = '\0';
+                print_unicode_line(buffer);
+                return 0;
+            }
+
+            THREADENTRY32 te32;
+            te32.dwSize = sizeof(THREADENTRY32);
+            if (!Thread32First(hThreadSnap, &te32)) {
+                snprintf(buffer, sizeof(buffer) - 1, "Không thể tiếp tục tiến trình PID %lu. Thread32First lỗi.", processId);
+                buffer[sizeof(buffer) - 1] = '\0';
+                print_unicode_line(buffer);
+                CloseHandle(hThreadSnap);
+                return 0;
+            }
+
+            int threadCount = 0;
+            int successCount = 0;
+
+            do {
+                if (te32.th32OwnerProcessID == processId) {
+                    threadCount++;
+                    HANDLE hThread = OpenThread(THREAD_SUSPEND_RESUME, FALSE, te32.th32ThreadID);
+                    if (hThread != NULL) {
+                        if (ResumeThread(hThread) != (DWORD)-1) {
+                            successCount++;
+                        }
+                        CloseHandle(hThread);
+                    }
+                }
+            } while (Thread32Next(hThreadSnap, &te32));
+
+            CloseHandle(hThreadSnap);
+
+            if (threadCount > 0 && successCount > 0) {
                 processList[i].isPaused = 0;
-                snprintf(buffer, sizeof(buffer) - 1, "Đã tiếp tục tiến trình PID %lu", processId);
+                snprintf(buffer, sizeof(buffer) - 1, "Đã tiếp tục %d/%d thread của tiến trình PID %lu", 
+                    successCount, threadCount, processId);
                 buffer[sizeof(buffer) - 1] = '\0';
                 print_unicode_line(buffer);
                 return 1;
             } else {
-                snprintf(buffer, sizeof(buffer) - 1, "Không thể tiếp tục tiến trình PID %lu. Mã lỗi: %lu", processId, GetLastError());
+                snprintf(buffer, sizeof(buffer) - 1, "Không thể tiếp tục tiến trình PID %lu. Không tìm thấy thread nào.", processId);
                 buffer[sizeof(buffer) - 1] = '\0';
                 print_unicode_line(buffer);
                 return 0;
@@ -292,7 +398,7 @@ int resumeProcess(DWORD processId) {
 
 void checkBackgroundProcesses() {
     DWORD exitCode;
-    char buffer[512];
+    // char buffer[512];
     int hasCompletedProcess = 0;
     
     for (int i = 0; i < processCount; i++) {
@@ -322,4 +428,30 @@ int isProcessExist(DWORD processId) {
         }
     }
     return 0;
+}
+
+void killAllProcesses() {
+    char buffer[512];
+    int killedCount = 0;
+    
+    for (int i = 0; i < processCount; i++) {
+        if (processList[i].isRunning) {
+            DWORD processId = processList[i].processInfo.dwProcessId;
+            if (TerminateProcess(processList[i].processInfo.hProcess, 1)) {
+                processList[i].isRunning = 0;
+                killedCount++;
+                
+                snprintf(buffer, sizeof(buffer) - 1, "Đã kết thúc tiến trình '%s' (PID: %lu)",
+                    processList[i].commandName, processId);
+                buffer[sizeof(buffer) - 1] = '\0';
+                print_unicode_line(buffer);
+            }
+        }
+    }
+    
+    if (killedCount > 0) {
+        snprintf(buffer, sizeof(buffer) - 1, "Đã kết thúc tổng cộng %d tiến trình", killedCount);
+        buffer[sizeof(buffer) - 1] = '\0';
+        print_unicode_line(buffer);
+    }
 } 

@@ -36,5 +36,6 @@ int killProcess(DWORD processId);
 int stopProcess(DWORD processId);
 int resumeProcess(DWORD processId);
 int isProcessExist(DWORD processId);
+void killAllProcesses();
 
 #endif 

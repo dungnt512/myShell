@@ -17,6 +17,13 @@ int isForegroundProcessRunning = 0;
 int isMonitorMode = 0;
 DWORD monitoredPid = 0;
 
+void safeExit(int exitCode) {
+    print_unicode_line("\nĐang thoát shell, kết thúc tất cả tiến trình...");
+    killAllProcesses();
+    cleanupProcessList();
+    exit(exitCode);
+}
+
 BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) {
     switch (fdwCtrlType) {
         case CTRL_C_EVENT:
@@ -29,6 +36,14 @@ BOOL WINAPI CtrlHandler(DWORD fdwCtrlType) {
                 print_unicode_line("\nĐã dừng tiến trình foreground");
                 return TRUE;
             }
+            return FALSE;
+        case CTRL_CLOSE_EVENT:
+        case CTRL_BREAK_EVENT:
+        case CTRL_LOGOFF_EVENT:
+        case CTRL_SHUTDOWN_EVENT:
+            print_unicode_line("\nĐang thoát shell, kết thúc tất cả tiến trình...");
+            killAllProcesses();
+            cleanupProcessList();
             return FALSE;
         default:
             return FALSE;
@@ -66,7 +81,7 @@ int main(int argc, char* argv[]) {
     }
 
     while (1) {
-        // checkBackgroundProcesses();
+        checkBackgroundProcesses();
         
         if (isMonitorMode) {
             HANDLE hProcess = OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, monitoredPid);
@@ -94,6 +109,7 @@ int main(int argc, char* argv[]) {
         
         // if (fgets(input, MAX_COMMAND_LENGTH, stdin) == NULL) {
         if (readCommandLine(input, MAX_COMMAND_LENGTH) == 0) {
+            safeExit(0);
             break;
         }
         input[strcspn(input, "\n")] = '\0';
@@ -104,6 +120,10 @@ int main(int argc, char* argv[]) {
         background = parseCommand(input, args);
         if (args[0] == NULL) {
             continue;
+        }
+
+        if (strcmp(args[0], "exit") == 0) {
+            safeExit(0);
         }
 
         if (executeBuiltinCommand(args)) {

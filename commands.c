@@ -65,6 +65,15 @@ int executeBuiltinCommand(char** args) {
         }
         return 1;
     }
+    if (strcmp(args[0], "unpath") == 0) {
+        if (args[1] != NULL) {
+            int index = atoi(args[1]);
+            unPath(index);
+        } else {
+            print_unicode_line("Lỗi: thiếu tham số chỉ số. Sử dụng: unpath <chỉ_số>");
+        }
+        return 1;
+    }
     if (strcmp(args[0], "list") == 0) {
         listProcesses();
         return 1;
@@ -119,6 +128,7 @@ void showHelp() {
     print_unicode_line("  dir [đường_dẫn]     - Liệt kê nội dung thư mục");
     print_unicode_line("  path                - Hiển thị đường dẫn của shell");
     print_unicode_line("  addpath <đường_dẫn> - Thêm đường dẫn vào quản lý của shell");
+    print_unicode_line("  unpath <chỉ_số>     - Xóa đường dẫn khỏi quản lý của shell");
     print_unicode_line("  notepad [tệp_tin]   - Mở Notepad với tệp tin tùy chọn");
     print_unicode_line("  calc                - Mở Calculator");
     print_unicode_line("\nQuản lý tiến trình:");
@@ -272,6 +282,26 @@ void addPath(char* newPath) {
     
     // update PATH of system (optional :))
     // SetEnvironmentVariable("PATH", newFullPath);
+}
+
+void unPath(int index) {
+    char buffer[1024];
+    
+    if (index < 1 || index > pathCount) {
+        print_unicode_line("Lỗi: Chỉ số không hợp lệ. Sử dụng: unpath <chỉ_số>");
+        return;
+    }
+    
+    index--; // convert to 0-based index
+    snprintf(buffer, sizeof(buffer) - 1, "Đã xóa đường dẫn khỏi PATH của shell: %s", shellPaths[index]);
+    buffer[sizeof(buffer) - 1] = '\0';
+    print_unicode_line(buffer);
+    
+    for (int i = index; i < pathCount - 1; i++) {
+        strcpy(shellPaths[i], shellPaths[i + 1]);
+    }
+    
+    pathCount--;
 }
 
 void openNotepad(char** args) {
